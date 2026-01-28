@@ -13,12 +13,17 @@ def divide_image(img: Image.Image, x_segs: int):
     y_segs = ceil(img.height / y_step)
 
     segments = []
-    for xi in range(x_segs):
+    for yi in range(y_segs):
         row = []
-        for yi in range(y_segs):
+        for xi in range(x_segs):
             row.append(
                 img.copy().crop(
-                    (xi * x_step, yi * y_step, (xi + 1) * x_step, ((yi + 1) * y_step))
+                    (
+                        xi * x_step,
+                        yi * y_step,
+                        min((xi + 1) * x_step, img.width),
+                        min((yi + 1) * y_step, img.height),
+                    )
                 )
             )
         segments.append(row)
@@ -66,10 +71,22 @@ def char_brightness_dict(chars: str, font: ImageFont.FreeTypeFont):
 def brightness_converter(segments: list[list[Image.Image]], char_dict):
     brightness_grid = map2d(lambda im: fmean(ImageStat.Stat(im).mean) / 255, segments)
 
-    print(brightness_grid)
+    def round_to_char(seg_brightness: float, char_dict: dict[str, float]):
+        return list(char_dict.keys())[
+            list(char_dict.values()).index(
+                min(
+                    char_dict.values(),
+                    key=lambda char_brightness: abs(char_brightness - seg_brightness),
+                )
+            )
+        ]
 
-    def round_to_char(brightness, char_dict):
-        pass
+    rows = [
+        "".join(row)
+        for row in map2d(lambda x: round_to_char(x, char_dict), brightness_grid)
+    ]
+    result = "\n".join(rows)
+    return result
 
 
 if __name__ == "__main__":
@@ -78,16 +95,12 @@ if __name__ == "__main__":
     img_path = path.normpath("./img.png")
 
     with Image.open(img_path).convert("L") as im:
-        segments = divide_image(im, 20)
+        segments = divide_image(im, 100)
 
         char_dict = char_brightness_dict(chars, font)
-
-        print(char_dict)
 
         sorted_str = ""
         for char in char_dict.keys():
             sorted_str += char
 
-        print(sorted_str)
-
-        brightness_converter(segments, char_dict)
+        print(brightness_converter(segments, char_dict))
