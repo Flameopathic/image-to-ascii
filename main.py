@@ -1,7 +1,8 @@
 from math import ceil
 from os import path
+from statistics import fmean
 
-from PIL import Image, ImageDraw, ImageFont, ImageText
+from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 glyph_ratio = 2  # x / y
 
@@ -11,7 +12,7 @@ def divide_image(img: Image.Image, x_segs: int):
     y_step = x_step * glyph_ratio
     y_segs = ceil(img.height / y_step)
 
-    segments = [[]]
+    segments = []
     for xi in range(x_segs):
         row = []
         for yi in range(y_segs):
@@ -23,6 +24,10 @@ def divide_image(img: Image.Image, x_segs: int):
         segments.append(row)
 
     return segments
+
+
+def map2d(func, grid):
+    return [[func(value) for value in row] for row in grid]
 
 
 def char_brightness_dict(chars: str, font: ImageFont.FreeTypeFont):
@@ -53,9 +58,18 @@ def char_brightness_dict(chars: str, font: ImageFont.FreeTypeFont):
 
     if max != 0:
         for char in char_dict:
-            char_dict[char] /= max
+            char_dict[char] = 1 - (char_dict[char] / max)
 
     return dict(sorted(char_dict.items(), key=lambda item: item[1]))
+
+
+def brightness_converter(segments: list[list[Image.Image]], char_dict):
+    brightness_grid = map2d(lambda im: fmean(ImageStat.Stat(im).mean) / 255, segments)
+
+    print(brightness_grid)
+
+    def round_to_char(brightness, char_dict):
+        pass
 
 
 if __name__ == "__main__":
@@ -63,15 +77,17 @@ if __name__ == "__main__":
     font = ImageFont.truetype(font="./GeistMono-Regular.otf", size=50)
     img_path = path.normpath("./img.png")
 
-    with Image.open(img_path) as im:
-        im.convert("L")
-
-        divide_image(im, 20)
+    with Image.open(img_path).convert("L") as im:
+        segments = divide_image(im, 20)
 
         char_dict = char_brightness_dict(chars, font)
+
+        print(char_dict)
 
         sorted_str = ""
         for char in char_dict.keys():
             sorted_str += char
 
         print(sorted_str)
+
+        brightness_converter(segments, char_dict)
