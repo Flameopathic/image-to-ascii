@@ -85,8 +85,7 @@ def brightness_converter(segments: list[list[Image.Image]], char_dict):
         "".join(row)
         for row in map2d(lambda x: round_to_char(x, char_dict), brightness_grid)
     ]
-    result = "\n".join(rows)
-    return result
+    return "\n".join(rows)
 
 
 if __name__ == "__main__":
@@ -96,11 +95,6 @@ if __name__ == "__main__":
 
     with Image.open(img_path).convert("L") as im:
         segments = divide_image(im, 100)
-
         char_dict = char_brightness_dict(chars, font)
-
-        sorted_str = ""
-        for char in char_dict.keys():
-            sorted_str += char
 
         print(brightness_converter(segments, char_dict))
