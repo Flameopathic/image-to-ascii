@@ -24,10 +24,10 @@ def divide_image(im: Image.Image, x_segs: int):
             row.append(
                 im.copy().crop(
                     (
-                        xi * x_step,
-                        yi * y_step,
-                        min((xi + 1) * x_step, im.width),
-                        min((yi + 1) * y_step, im.height),
+                        round(xi * x_step),
+                        round(yi * y_step),
+                        round(min((xi + 1) * x_step, im.width)),
+                        round(min((yi + 1) * y_step, im.height)),
                     )
                 )
             )
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         new_im.paste(im, (0, 0), im)
         im = new_im.convert("L")  # greyscale
 
-        segments = divide_image(im, 300)
+        segments = divide_image(im, 200)
 
         # char_brightness_dict = get_char_brightness_dict(chars, font_path)
         # print(brightness_converter(segments, char_brightness_dict))
