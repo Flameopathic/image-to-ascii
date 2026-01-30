@@ -93,7 +93,12 @@ if __name__ == "__main__":
     font = ImageFont.truetype(font="./GeistMono-Regular.otf", size=50)
     img_path = path.normpath("./img.png")
 
-    with Image.open(img_path).convert("L") as im:
+    with Image.open(img_path).convert("RGBA") as im:
+        # add white background to transparent images
+        new_im = Image.new("RGBA", im.size, "WHITE")
+        new_im.paste(im, (0, 0), im)
+        im = new_im.convert("L")  # greyscale
+
         segments = divide_image(im, 100)
         char_dict = char_brightness_dict(chars, font)
 
