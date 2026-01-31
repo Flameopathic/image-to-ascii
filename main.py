@@ -1,6 +1,5 @@
 from enum import Enum
 from math import ceil
-from multiprocessing import Array
 from statistics import fmean
 from typing import Annotated
 
@@ -142,10 +141,11 @@ def combine_bstr_diffstr(bstr: str, diffstr: str, serial=False):
                 [
                     any(
                         [
-                            diffmap[min(max(i + di, 0), len(diffmap) - 1)][
-                                min(max(j + dj, 0), len(diffrow) - 1)
-                            ]
-                            == " "
+                            i + di < 0
+                            or i + di > len(diffmap) - 1
+                            or j + dj < 0
+                            or j + dj > len(diffrow) - 1
+                            or diffmap[i + di][j + dj] == " "
                             for dj in range(-1, 2, 2)
                         ]
                     )
