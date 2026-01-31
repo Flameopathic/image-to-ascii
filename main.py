@@ -1,7 +1,11 @@
+from enum import Enum
 from math import ceil
+from multiprocessing import Array
 from statistics import fmean
+from typing import Annotated
 
-from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFont, ImageStat
+import typer
+from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageStat
 
 
 def divide_image(im: Image.Image, x_segs: int, glyph_ratio: float):
@@ -161,41 +165,61 @@ def combine_bstr_diffstr(bstr: str, diffstr: str, serial=False):
     return combination
 
 
-if __name__ == "__main__":
-    chars = " `1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./~!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?"
-    font_path = "./GeistMono-Regular.otf"
-    font = ImageFont.truetype(font=font_path, size=50)
-    img_path = "./img.png"
+class Algorithm(str, Enum):
+    brightness = "brightness"
+    px_diff = "px_diff"
+    combo = "combo"
 
-    with Image.open(img_path).convert("RGBA") as im:
+
+def main(
+    algorithm: Annotated[
+        Algorithm, typer.Argument(help="Algorithm used for conversion")
+    ],
+    image: Annotated[str, typer.Argument(help="Path to image to process")],
+    size: Annotated[
+        int, typer.Option(help="Number of characters per line of output")
+    ] = 80,
+    chars: Annotated[
+        str, typer.Option(help="Set of characters used to form the output")
+    ] = " `1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./~!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?",
+    font: Annotated[
+        str, typer.Option(help="Path to font used as reference for the output")
+    ] = "./GeistMono-Regular.otf",
+):
+    image_font = ImageFont.truetype(font=font, size=50)
+
+    with Image.open(image).convert("RGBA") as im:
         # add white background to transparent images
         new_im = Image.new("RGBA", im.size, "WHITE")
         new_im.paste(im, (0, 0), im)
         im = new_im.convert("L")  # greyscale
 
-        char_image_dict: dict[str, Image.Image] = gen_char_images(chars, font)
-
-        min_char_brightness = min(
-            [get_brightness(char) for char in char_image_dict.values()]
-        )
+        char_image_dict: dict[str, Image.Image] = gen_char_images(chars, image_font)
 
         segments = divide_image(
             im,
-            200,
+            size,
             list(char_image_dict.values())[0].height
             / list(char_image_dict.values())[0].width,
         )
-
         char_image_dict = {
             char: char_image_dict[char].resize(segments[0][0].size)
             for char in char_image_dict
         }
-
         char_brightness_dict = get_char_brightness_dict(char_image_dict)
 
-        bstr = brightness_converter(segments, char_brightness_dict)
-        diffstr = px_diff_converter(segments, char_image_dict)
+        match algorithm:
+            case Algorithm.brightness:
+                brightness_converter(segments, char_brightness_dict, True)
+            case Algorithm.px_diff:
+                px_diff_converter(segments, char_image_dict, True)
+            case Algorithm.combo:
+                combine_bstr_diffstr(
+                    brightness_converter(segments, char_brightness_dict),
+                    px_diff_converter(segments, char_image_dict),
+                    True,
+                )
 
-        print(bstr)
-        print(diffstr)
-        print(combine_bstr_diffstr(bstr, diffstr))
+
+if __name__ == "__main__":
+    typer.run(main)
