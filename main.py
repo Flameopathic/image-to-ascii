@@ -1,7 +1,7 @@
 from math import ceil
 from statistics import fmean
 
-from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageStat
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFont, ImageStat
 
 
 def divide_image(im: Image.Image, x_segs: int, glyph_ratio: float):
@@ -68,7 +68,14 @@ def normalize_brightnesses(char_brightness_dict: dict[str, float]):
     return char_brightness_dict
 
 
-def map2d(func, grid):
+def map2d(func, grid, do_print=False):
+    if do_print:
+        for i, row in enumerate(grid):
+            for j, value in enumerate(row):
+                grid[i][j] = func(value)
+                print(grid[i][j], end="")
+            print()
+        return grid
     return [[func(value) for value in row] for row in grid]
 
 
@@ -80,7 +87,9 @@ def get_char_brightness_dict(char_image_dict):
     return char_brightness_dict
 
 
-def brightness_converter(segments: list[list[Image.Image]], char_brightness_dict):
+def brightness_converter(
+    segments: list[list[Image.Image]], char_brightness_dict, serial=False
+):
     brightness_grid = map2d(lambda im: fmean(ImageStat.Stat(im).mean) / 255, segments)
 
     def round_to_char(seg_brightness: float):
@@ -93,11 +102,14 @@ def brightness_converter(segments: list[list[Image.Image]], char_brightness_dict
             )
         ]
 
-    rows = ["".join(row) for row in map2d(lambda x: round_to_char(x), brightness_grid)]
+    rows = [
+        "".join(row)
+        for row in map2d(lambda x: round_to_char(x), brightness_grid, serial)
+    ]
     return "\n".join(rows)
 
 
-def px_diff_converter(segments: list[list[Image.Image]], char_image_dict):
+def px_diff_converter(segments: list[list[Image.Image]], char_image_dict, serial=False):
     def compare_to_char(seg: Image.Image):
         best_char = ""
         best_diff = -1
@@ -110,8 +122,43 @@ def px_diff_converter(segments: list[list[Image.Image]], char_image_dict):
                 best_char = char
         return best_char
 
-    rows = ["".join(row) for row in map2d(lambda x: compare_to_char(x), segments)]
+    rows = [
+        "".join(row) for row in map2d(lambda x: compare_to_char(x), segments, serial)
+    ]
     return "\n".join(rows)
+
+
+def combine_bstr_diffstr(bstr: str, diffstr: str, serial=False):
+    bmap = [[char for char in row] for row in bstr.splitlines()]
+    diffmap = [[char for char in row] for row in diffstr.splitlines()]
+    combination = ""
+    for i, (brow, diffrow) in enumerate(zip(bmap, diffmap)):
+        for j, (bchar, diffchar) in enumerate(zip(brow, diffrow)):
+            if diffchar == " " or any(
+                [
+                    any(
+                        [
+                            diffmap[min(max(i + di, 0), len(diffmap) - 1)][
+                                min(max(j + dj, 0), len(diffrow) - 1)
+                            ]
+                            == " "
+                            for dj in range(-1, 2, 2)
+                        ]
+                    )
+                    for di in range(-1, 2, 2)
+                ]
+            ):
+                combination += diffchar
+                if serial:
+                    print(diffchar, end="")
+            else:
+                combination += bchar
+                if serial:
+                    print(bchar, end="")
+        combination += "\n"
+        if serial:
+            print()
+    return combination
 
 
 if __name__ == "__main__":
@@ -128,6 +175,10 @@ if __name__ == "__main__":
 
         char_image_dict: dict[str, Image.Image] = gen_char_images(chars, font)
 
+        min_char_brightness = min(
+            [get_brightness(char) for char in char_image_dict.values()]
+        )
+
         segments = divide_image(
             im,
             200,
@@ -140,9 +191,11 @@ if __name__ == "__main__":
             for char in char_image_dict
         }
 
-        # char_brightness_dict = get_char_brightness_dict(char_image_dict)
+        char_brightness_dict = get_char_brightness_dict(char_image_dict)
 
-        # print(char_brightness_dict)
-        # print(brightness_converter(segments, char_brightness_dict))
+        bstr = brightness_converter(segments, char_brightness_dict)
+        diffstr = px_diff_converter(segments, char_image_dict)
 
-        print(px_diff_converter(segments, char_image_dict))
+        print(bstr)
+        print(diffstr)
+        print(combine_bstr_diffstr(bstr, diffstr))
